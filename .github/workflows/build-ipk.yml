@@ -55,6 +55,7 @@ jobs:
         with:
           name: ${{ env.ASSET_NAME }}
           path: .github/*.ipk
+          include-hidden-files: true
 
       - name: Publishing to GitHub Releases
         uses: svenstaro/upload-release-action@v2
