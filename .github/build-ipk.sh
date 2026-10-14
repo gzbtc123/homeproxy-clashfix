@@ -16,10 +16,23 @@ function get_mk_value() {
 }
 
 PKG_NAME="$(get_mk_value "PKG_NAME")"
-if [ "$RELEASE_TYPE" == "release" ]; then
-	PKG_VERSION="$(get_mk_value "PKG_VERSION")"
+GIT_REV="$(git rev-parse --short HEAD)"
+
+if [ "$RELEASE_TYPE" = "release" ]; then
+    PKG_VERSION="$(get_mk_value "PKG_VERSION")"
 else
-	PKG_VERSION="dev-$PKG_SOURCE_DATE_EPOCH-$(git rev-parse --short HEAD)"
+    PKG_VERSION=""
+fi
+
+# If Makefile has no version, generate a numeric timestamp version.
+if [ -z "$PKG_VERSION" ]; then
+    PKG_VERSION="$(date -u -d "@$PKG_SOURCE_DATE_EPOCH" +%Y%m%d.%H%M%S)~clashfix.$GIT_REV"
+fi
+
+# Never build an IPK with an empty version.
+if [ -z "$PKG_VERSION" ]; then
+    echo "ERROR: PKG_VERSION is empty; refusing to build." >&2
+    exit 1
 fi
 
 TEMP_DIR="$(mktemp -d -p $BASE_DIR)"
@@ -40,18 +53,18 @@ cat > "$TEMP_PKG_DIR/lib/upgrade/keep.d/$PKG_NAME" <<-EOF
 /etc/homeproxy/resources/proxy_list.txt
 EOF
 
-cat > "$TEMP_PKG_DIR/CONTROL/control" <<-EOF
-	Package: $PKG_NAME
-	Version: $PKG_VERSION
-	Depends: libc, sing-box, chinadns-ng, firewall4, kmod-nft-tproxy
-	Source: https://github.com/immortalwrt/homeproxy
-	SourceName: $PKG_NAME
-	Section: luci
-	SourceDateEpoch: $PKG_SOURCE_DATE_EPOCH
-	Maintainer: Tianling Shen <cnsztl@immortalwrt.org>
-	Architecture: all
-	Installed-Size: TO-BE-FILLED-BY-IPKG-BUILD
-	Description:  The modern ImmortalWrt proxy platform for ARM64/AMD64
+cat > "$TEMP_PKG_DIR/CONTROL/control" <<EOF
+Package: $PKG_NAME
+Version: $PKG_VERSION
+Depends: libc, sing-box, chinadns-ng, firewall4, kmod-nft-tproxy
+Source: https://github.com/gzbtc123/homeproxy-clashfix
+SourceName: $PKG_NAME
+Section: luci
+SourceDateEpoch: $PKG_SOURCE_DATE_EPOCH
+Maintainer: Tianling Shen <cnsztl@immortalwrt.org>
+Architecture: all
+Installed-Size: TO-BE-FILLED-BY-IPKG-BUILD
+Description: The modern ImmortalWrt proxy platform for ARM64/AMD64
 EOF
 
 git clone --filter=blob:none --no-checkout "https://github.com/openwrt/luci.git" "po2lmo"
